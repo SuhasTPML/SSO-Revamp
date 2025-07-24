@@ -1,0 +1,1922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTP Sign In</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        /* Deccan Herald brand colors */
+        :root {
+            --dh-teal: #0098AB;
+            --dh-teal-dark: #007A89;
+            --dh-teal-light: #E6F7F9;
+        }
+        
+        .spinner {
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor; /* Uses text color of parent for the spinner top border */
+            border-radius: 50%;
+            width: 20px; /* Default spinner size */
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Fallback icons for when Lucide doesn't load */
+        .icon-fallback-mail:before {
+            content: "✉️";
+        }
+        .icon-fallback-phone:before {
+            content: "📱";
+        }
+        .icon-fallback-shield:before {
+            content: "🛡️";
+        }
+        .icon-fallback-arrow-left:before {
+            content: "←";
+        }
+        /* Fallback icons for social logins (if Lucide doesn't have them easily) */
+        .icon-fallback-apple:before {
+            content: ""; /* Unicode for Apple logo */
+            font-family: sans-serif; /* Ensure a font that supports this */
+        }
+        .icon-fallback-google:before {
+            content: "G"; /* Simple G, or use actual icon if needed */
+            font-weight: bold;
+            font-family: sans-serif;
+        }
+
+        /* Splash screen styles */
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #0098AB; /* Deccan Herald teal color */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease-out;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        .splash-logo {
+            max-width: 400px;
+            width: 85%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dh-logo {
+            font-size: 6rem;
+            font-family: 'Times New Roman', serif;
+            color: white;
+            line-height: 0.9;
+            font-weight: bold;
+            letter-spacing: -2px;
+            margin-bottom: 10px;
+        }
+
+        .dh-image {
+            width: 60px;
+            margin: 8px 0;
+        }
+
+        .dh-title {
+            font-size: 1.8rem;
+            font-family: 'Times New Roman', serif;
+            color: white;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            line-height: 1.2;
+        }
+
+        .dh-tagline {
+            font-size: 1rem;
+            color: white;
+            font-style: italic;
+            margin: 8px 0;
+            position: relative;
+            padding: 0 30px;
+            display: inline-block;
+        }
+
+        .dh-tagline:before, .dh-tagline:after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 20px;
+            height: 1px;
+            background-color: white;
+        }
+
+        .dh-tagline:before {
+            left: 0;
+        }
+
+        .dh-tagline:after {
+            right: 0;
+        }
+
+        .dh-date {
+            position: absolute;
+            bottom: 30px;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 500;
+            width: 100%;
+            text-align: center;
+            left: 0;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.8s ease, transform 0.8s ease;
+        }
+
+        .dh-date.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .splash-hide {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Responsive adjustments */
+        @media (min-width: 768px) {
+            .dh-logo {
+                font-size: 10rem;
+                letter-spacing: -5px;
+            }
+            
+            .dh-image {
+                width: 80px;
+                margin: 10px 0;
+            }
+            
+            .dh-title {
+                font-size: 2.5rem;
+            }
+            
+            .dh-tagline {
+                font-size: 1.2rem;
+                padding: 0 40px;
+            }
+            
+            .dh-tagline:before, .dh-tagline:after {
+                width: 30px;
+            }
+            
+            .dh-date {
+                font-size: 1rem;
+                bottom: 40px;
+            }
+        }
+
+        /* Success Animation Styles */
+        .success-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background-color: var(--dh-teal-light);
+            position: relative;
+            margin: 0 auto 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .success-spinner {
+            border: 4px solid rgba(0, 152, 171, 0.2);
+            border-top: 4px solid var(--dh-teal);
+            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            animation: spin 1s linear infinite;
+            position: absolute;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        }
+
+        .success-spinner.hide {
+            opacity: 0;
+        }
+
+        .success-checkmark {
+            width: 80px;
+            height: 80px;
+            position: absolute;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            transform: scale(0.8);
+        }
+
+        .success-checkmark.show {
+            opacity: 1;
+            transform: scale(1);
+            transition: opacity 0.5s ease, transform 0.3s ease;
+        }
+
+        .success-checkmark .check-icon {
+            width: 80px;
+            height: 80px;
+            position: relative;
+        }
+
+        .success-checkmark .check-icon .icon-line {
+            height: 8px;
+            background-color: var(--dh-teal);
+            display: block;
+            border-radius: 4px;
+            position: absolute;
+            z-index: 10;
+        }
+
+        .success-checkmark .check-icon .icon-line.line-tip {
+            width: 30px;
+            transform: rotate(45deg);
+            top: 46px;
+            left: 14px;
+            animation: icon-line-tip 0.5s;
+        }
+
+        .success-checkmark .check-icon .icon-line.line-long {
+            width: 48px;
+            transform: rotate(-45deg);
+            top: 38px;
+            left: 25px;
+            animation: icon-line-long 0.5s;
+        }
+
+        .success-checkmark .check-icon .icon-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 4px solid var(--dh-teal);
+            position: absolute;
+            box-sizing: border-box;
+            animation: icon-circle 0.5s;
+        }
+
+        @keyframes icon-line-tip {
+            0% {
+                width: 0;
+                left: 0;
+                top: 22px;
+            }
+            54% {
+                width: 0;
+                left: 0;
+                top: 22px;
+            }
+            70% {
+                width: 35px;
+                left: -8px;
+                top: 46px;
+            }
+            84% {
+                width: 17px;
+                left: 21px;
+                top: 48px;
+            }
+            100% {
+                width: 30px;
+                left: 14px;
+                top: 46px;
+            }
+        }
+
+        @keyframes icon-line-long {
+            0% {
+                width: 0;
+                right: 8px;
+                top: 38px;
+            }
+            65% {
+                width: 0;
+                right: 8px;
+                top: 38px;
+            }
+            84% {
+                width: 55px;
+                right: 0px;
+                top: 28px;
+            }
+            100% {
+                width: 48px;
+                right: 8px;
+                top: 38px;
+            }
+        }
+
+        @keyframes icon-circle {
+            0% {
+                transform: scale(0);
+            }
+            40% {
+                transform: scale(0);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+        
+        /* Input field focus effect that includes the button */
+        #inputContainer {
+            position: relative;
+        }
+        
+        #inputContainer:focus-within {
+            border-radius: 0.5rem;
+            box-shadow: 0 0 0 2px rgba(0, 152, 171, 0.2);
+        }
+        
+        #inputContainer:focus-within input {
+            border-color: var(--dh-teal);
+        }
+        
+        #inputContainer:focus-within button {
+            border-color: var(--dh-teal);
+        }
+        
+        /* Ensure the input doesn't show its own focus ring */
+        #contactInput:focus {
+            outline: none;
+            box-shadow: none;
+            border-right-color: transparent;
+        }
+        
+        /* OTP Input Styles */
+        .otp-container {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: nowrap; /* Default: no wrapping */
+        }
+        
+        .otp-input {
+            width: 40px;
+            height: 48px;
+            text-align: center;
+            font-size: 1.25rem;
+            font-weight: bold;
+            border: 2px solid #e5e7eb;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+        }
+        
+        .otp-input:focus {
+            border-color: var(--dh-teal);
+            box-shadow: 0 0 0 2px rgba(0, 152, 171, 0.2);
+            outline: none;
+        }
+        
+        /* Only enable wrapping below 370px */
+        @media (max-width: 370px) {
+            .otp-container {
+                flex-wrap: wrap;
+            }
+            
+            .otp-input {
+                width: 45px; /* Slightly larger when wrapped */
+            }
+        }
+        
+        @media (min-width: 400px) {
+            .otp-input {
+                width: 48px;
+                height: 56px;
+            }
+        }
+        
+        @media (min-width: 640px) {
+            .otp-input {
+                width: 56px;
+                height: 64px;
+                font-size: 1.5rem;
+            }
+        }
+        
+        /* Transition Screen Styles */
+        .transition-screen {
+            min-height: 100vh;
+            background-color: var(--dh-teal-light);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .transition-logo {
+            font-size: 4rem;
+            font-family: 'Times New Roman', serif;
+            font-weight: bold;
+            color: var(--dh-teal);
+            line-height: 1;
+            margin-bottom: 2rem;
+        }
+        
+        .transition-loader {
+            margin: 2rem 0;
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(0, 152, 171, 0.2);
+            border-top: 4px solid var(--dh-teal);
+            border-radius: 50%;
+            animation: spin 1.2s linear infinite;
+        }
+        
+        .transition-message {
+            font-size: 1.25rem;
+            color: var(--dh-teal-dark);
+            margin-top: 1rem;
+            max-width: 280px;
+            line-height: 1.4;
+        }
+        
+        /* News Feed Styles */
+        .news-header {
+            background-color: var(--dh-teal);
+            padding: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .news-logo {
+            display: flex;
+            align-items: center;
+        }
+        
+        .news-logo-text {
+            color: white;
+            font-family: 'Times New Roman', serif;
+            font-weight: bold;
+            font-size: 1.8rem;
+        }
+        
+        .user-profile {
+            color: white;
+        }
+        
+        .news-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        
+        .news-article {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+        
+        .article-image {
+            width: 100%;
+            height: 200px;
+            background-size: cover;
+            background-position: center;
+        }
+        
+        .article-content {
+            padding: 1.5rem;
+        }
+        
+        .article-category {
+            display: inline-block;
+            background-color: var(--dh-teal-light);
+            color: var(--dh-teal);
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .article-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            margin-bottom: 0.75rem;
+            color: #333;
+            line-height: 1.4;
+        }
+        
+        .article-excerpt {
+            color: #666;
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+        
+        .article-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            color: #888;
+        }
+        
+        .back-to-login {
+            display: block;
+            background-color: var(--dh-teal);
+            color: white;
+            font-weight: 600;
+            text-align: center;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 2rem auto;
+            max-width: 200px;
+            transition: background-color 0.3s ease;
+        }
+        
+        .back-to-login:hover {
+            background-color: var(--dh-teal-dark);
+        }
+        
+        /* ==== NEW RESPONSIVE STYLES ==== */
+        @media (max-width: 767px) { /* This targets screens smaller than Tailwind's 'md' breakpoint */
+            #login-container {
+                /* On mobile, the background should be the light teal from your app */
+                background-color: var(--dh-teal-light);
+            }
+
+            #interactive-panel {
+                /* Ensure the panel takes up the full screen height for vertical centering */
+                min-height: 100vh;
+            }
+
+            /* 
+             This is a key rule: It re-applies the 'card' styling (background, shadow, etc.)
+             to your app's main container, but ONLY on mobile screens.
+            */
+            #app > div {
+                 background-color: white;
+                 border-radius: 1.5rem; /* eq. to rounded-2xl */
+                 box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* eq. to shadow-xl */
+                 padding: 2rem; /* eq. to p-8 */
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- POC Control Panel -->
+    <div id="poc-control-panel" class="bg-yellow-200 p-4 text-center font-sans border-b border-yellow-300">
+        <h2 class="font-bold text-lg mb-2">POC Control Panel</h2>
+        <p class="text-sm mb-3">Simulate navigating to different Deccan Herald platforms:</p>
+        <div class="flex justify-center space-x-2 flex-wrap gap-2">
+            <button onclick="navigateTo('news')" class="bg-blue-500 text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-600">News Website</button>
+            <button onclick="navigateTo('comments')" class="bg-green-500 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-600">Commenting</button>
+            <button onclick="navigateTo('classifieds')" class="bg-red-500 text-white px-4 py-2 rounded text-sm font-medium hover:bg-red-600">Classifieds</button>
+        </div>
+        <p class="text-xs text-gray-600 mt-2">Current Platform: <span id="currentPlatformDisplay" class="font-semibold">news</span></p>
+    </div>
+    
+    <div id="login-container" class="min-h-screen md:flex">
+        <!-- ==== PANEL 1: THE BRAND PANEL (Desktop Only) ==== -->
+        <div id="brand-panel" class="hidden md:flex w-1/2 bg-[#0098AB] p-12 flex-col justify-center items-center relative">
+            <!-- This content is from your original design, creating a strong brand presence -->
+            <div class="text-white text-center">
+                <div class="mb-6">
+                    <img src="DHlogo-D-VMeKAZ.svg" alt="Deccan Herald Logo" class="w-32 h-auto mx-auto mb-4 brightness-0 invert">
+                </div>
+                <div style="font-family: 'Times New Roman', serif; font-size: 2.5rem; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-top: 1rem;">DECCAN HERALD</div>
+                <div class="text-lg italic mt-2">The Power of Good</div>
+            </div>
+        </div>
+
+        <!-- ==== PANEL 2: THE INTERACTIVE PANEL ==== -->
+        <div id="interactive-panel" class="w-full md:w-1/2 flex items-center justify-center p-2 md:p-4">
+            <!-- Your entire JavaScript app will render inside this single div -->
+            <div id="app" class="w-full"></div>
+        </div>
+    </div>
+
+    <script>
+        // Splash screen with DH logo and current date
+        function showSplashScreen() {
+            const splashScreen = document.createElement('div');
+            splashScreen.id = 'splash-screen';
+            
+            const now = new Date();
+            const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+            const formattedDate = now.toLocaleDateString('en-US', options);
+            const formattedDateWithOrdinal = formattedDate.replace(/\b(\d{1,2})\b/, (match) => {
+                const day = parseInt(match);
+                const suffixes = ['th', 'st', 'nd', 'rd'];
+                const suffix = day % 10 < 4 && Math.floor(day / 10) !== 1 ? suffixes[day % 10] : suffixes[0];
+                return day + suffix;
+            });
+            
+            splashScreen.innerHTML = `
+                <div class="splash-logo">
+                    <div class="dh-logo">DH</div>
+                    <div class="dh-image">
+                        <svg width="100%" height="100%" viewBox="0 0 100 100" fill="white">
+                            <path d="M50,10 C40,10 35,15 35,25 C35,40 65,40 65,55 C65,65 60,70 50,70 C40,70 35,65 35,55 M50,0 C30,0 15,15 15,35 C15,60 35,70 50,70 C65,70 85,60 85,35 C85,15 70,0 50,0 Z" />
+                        </svg>
+                    </div>
+                    <div class="dh-title">DECCAN HERALD</div>
+                    <div class="dh-tagline">The Power of Good</div>
+                </div>
+                <div class="dh-date">${formattedDateWithOrdinal}</div>
+            `;
+            
+            document.body.appendChild(splashScreen);
+            
+            setTimeout(() => {
+                const dateElement = splashScreen.querySelector('.dh-date');
+                if (dateElement) {
+                    dateElement.classList.add('show');
+                }
+            }, 2000);
+            
+            setTimeout(() => {
+                splashScreen.classList.add('splash-hide');
+                setTimeout(() => {
+                    if (document.body.contains(splashScreen)) {
+                        document.body.removeChild(splashScreen);
+                    }
+                }, 500);
+            }, 4000);
+        }
+
+        // Application state - Enhanced for POC
+        let state = {
+            // === POC-specific state ===
+            currentPlatform: 'news', // 'news', 'comments', 'classifieds'
+            loggedInUser: null, // Will be null or { contact: 'user@email.com', type: 'email' }
+            uiStep: 'login', // 'login', 'verify', 'loggedIn', 'collectData'
+            platformConfig: {}, // Configuration for current platform
+            missingData: null, // Data needed for collectData step
+            
+            // === Existing OTP flow state ===
+            step: 'input', // Keep for backward compatibility - maps to uiStep
+            contact: '',
+            otp: ['', '', '', '', '', ''],
+            contactType: '',
+            isValidInput: false,
+            isLoading: false,
+            error: '',
+            timer: 30,
+            canResend: false,
+            validationMessage: ''
+        };
+
+        let timerInterval = null;
+        let otpInputs = [];
+        
+        // === POC SIMULATED API ===
+        const fakeApi = {
+            // Simulates sending an OTP and logging in
+            login: (contact) => {
+                console.log(`API: Logging in with ${contact}`);
+                const type = detectContactType(contact);
+                const user = { contact: contact, type: type };
+                
+                // Simulate a network delay
+                return new Promise(resolve => setTimeout(() => resolve({ success: true, user: user }), 1000));
+            },
+
+            // Simulates checking if the current user meets the new platform's needs
+            checkRequirements: (user, platformConfig) => {
+                console.log(`API: Checking user for ${platformConfig.platform} requirements.`);
+                if (platformConfig.emailRequired && user.type !== 'email') {
+                    return { needsData: 'email', message: 'To post comments, you need to add an email address to your account.' };
+                }
+                if (platformConfig.phoneRequired && user.type !== 'phone') {
+                    return { needsData: 'phone', message: 'To access classifieds, you need to add a mobile number.' };
+                }
+                return { needsData: null }; // Everything is fine
+            },
+            
+            // Simulates saving additional user data
+            saveAdditionalData: (userId, dataType, value) => {
+                console.log(`API: Saving ${dataType} = ${value} for user ${userId}`);
+                // Simulate network delay and potential errors
+                return new Promise((resolve, reject) => {
+                    setTimeout(() => {
+                        // Test scenarios for API errors
+                        if (value === 'error') {
+                            reject({ success: false, message: 'Simulated API error - please try again' });
+                        } else if (value === 'timeout') {
+                            reject({ success: false, message: 'Request timed out - please check your connection' });
+                        } else if (value === 'duplicate') {
+                            reject({ success: false, message: 'This information is already associated with another account' });
+                        } else {
+                            resolve({ success: true, message: dataType + ' saved successfully' });
+                        }
+                    }, 1500);
+                });
+            }
+        };
+        
+        // === PLATFORM CONFIGURATION ===
+        function getPlatformConfig(platform) {
+            if (platform === 'comments') {
+                return { 
+                    platform: 'comments', 
+                    emailRequired: true, 
+                    phoneRequired: false, 
+                    message: 'An email address is required to post comments.' 
+                };
+            }
+            if (platform === 'classifieds') {
+                return { 
+                    platform: 'classifieds', 
+                    emailRequired: false, 
+                    phoneRequired: true, 
+                    message: 'A mobile number is required to access classifieds.' 
+                };
+            }
+            // Default for news
+            return { 
+                platform: 'news', 
+                emailRequired: false, 
+                phoneRequired: false, 
+                message: 'Enter your email or mobile to continue.' 
+            };
+        }
+        
+        // === CORE NAVIGATION FUNCTION ===
+        function navigateTo(platform) {
+            console.log(`Navigating to: ${platform}`);
+            state.currentPlatform = platform;
+            
+            // Update the display
+            const platformDisplay = document.getElementById('currentPlatformDisplay');
+            if (platformDisplay) {
+                platformDisplay.textContent = platform;
+            }
+
+            // If the user is logged in, check if they meet the new requirements
+            if (state.loggedInUser) {
+                const config = getPlatformConfig(platform);
+                const requirement = fakeApi.checkRequirements(state.loggedInUser, config);
+
+                if (requirement.needsData) {
+                    state.uiStep = 'collectData';
+                    state.missingData = requirement;
+                } else {
+                    state.uiStep = 'loggedIn'; // They meet the requirements
+                }
+            } else {
+                // If not logged in, just show the login screen for that platform
+                state.uiStep = 'login';
+                state.step = 'input'; // Keep backward compatibility
+            }
+            
+            render(); // Re-render the entire app
+        }
+
+        function detectContactType(value) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            const cleanedValue = value.replace(/[\s\-\(\)]/g, ''); // Don't remove + here
+            
+            // === CORE DETECTION LOGGING ===
+            console.log('🔍 Detecting contact type:', {
+                originalValue: value,
+                cleanedValue: cleanedValue,
+                length: value.length,
+                hasLetters: /[a-zA-Z]/.test(value),
+                hasAt: /@/.test(value),
+                hasDot: /\./.test(value),
+                hasDigitsOnly: /^\d+$/.test(cleanedValue),
+                startsWithValidPhone: /^[6-9]/.test(cleanedValue)
+            });
+            
+            // If it's a complete valid email, return email
+            if (emailRegex.test(value)) {
+                console.log('📧 Detected as: COMPLETE EMAIL (matches full regex)');
+                return 'email';
+            }
+            
+            // If it's a complete valid phone, return phone
+            if (/^[6-9]\d{9}$/.test(cleanedValue)) {
+                console.log('📱 Detected as: COMPLETE PHONE (10 digits, starts with 6-9)');
+                return 'phone';
+            }
+            
+            // For partial input detection:
+            // If it contains letters, @ symbol, or dots, it's likely an email
+            if (/[a-zA-Z@.]/.test(value)) {
+                console.log('📧 Detected as: PARTIAL EMAIL (contains letters/@ or dots)');
+                return 'email';
+            }
+            
+            // If it contains only digits and starts with valid phone digits, it's likely a phone
+            if (/^\d+$/.test(cleanedValue) && cleanedValue.length > 0) {
+                // If it starts with a valid Indian mobile digit
+                if (/^[6-9]/.test(cleanedValue)) {
+                    console.log('📱 Detected as: PARTIAL PHONE (digits only, starts with 6-9)');
+                    return 'phone';
+                }
+                // If it's just a single digit that could be part of a phone
+                if (cleanedValue.length <= 2) {
+                    console.log('📱 Detected as: PARTIAL PHONE (1-2 digits)');
+                    return 'phone';
+                }
+            }
+            
+            console.log('❓ Detected as: UNKNOWN (no clear pattern)');
+            return '';
+        }
+
+        function validateContact(value) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            
+            // Keep email validation unchanged
+            if (emailRegex.test(value)) return { type: 'email', valid: true, message: 'Valid email address' };
+            
+            const cleanedValue = value.replace(/[\s\-\(\)]/g, '');
+            
+            // Check for country codes (only when + is used with numbers)
+            if (value.includes('+') && /\d/.test(value)) {
+                return { type: '', valid: false, message: 'Only enter your 10 digit mobile number (No country codes)' };
+            }
+            
+            // Check if it's a valid 10-digit phone number
+            if (/^[6-9]\d{9}$/.test(cleanedValue)) return { type: 'phone', valid: true, message: 'Valid mobile number' };
+            
+            // Other phone validation messages
+            if (/^\d+$/.test(cleanedValue)) {
+                if (cleanedValue.length < 10) return { type: '', valid: false, message: 'Mobile number too short (need 10 digits)' };
+                if (cleanedValue.length > 10) return { type: '', valid: false, message: 'Mobile number too long (need 10 digits)' };
+                if (cleanedValue.length === 10 && !/^[6-9]/.test(cleanedValue)) return { type: '', valid: false, message: 'Indian mobile numbers start with 6, 7, 8, or 9' };
+            }
+            
+            return { type: '', valid: false, message: '' };
+        }
+        
+        // === PROGRESSIVE DATA COLLECTION VALIDATION ===
+        function validateDataCollectionInput(dataType, value) {
+            const trimmedValue = value.trim();
+            
+            if (!trimmedValue) {
+                return { valid: false, message: `Please enter your ${dataType}` };
+            }
+            
+            if (dataType === 'email') {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(trimmedValue)) {
+                    return { valid: false, message: 'Please enter a valid email address (e.g., user@example.com)' };
+                }
+                return { valid: true, message: 'Valid email address' };
+            }
+            
+            if (dataType === 'phone') {
+                const cleanedValue = trimmedValue.replace(/[\s\-\(\)]/g, '');
+                
+                // Check for country codes (not allowed)
+                if (trimmedValue.includes('+')) {
+                    return { valid: false, message: 'Only enter your 10 digit mobile number (no country codes)' };
+                }
+                
+                // Check if it's a valid 10-digit phone number
+                if (!/^[6-9]\d{9}$/.test(cleanedValue)) {
+                    if (!/^\d+$/.test(cleanedValue)) {
+                        return { valid: false, message: 'Mobile number should contain only digits' };
+                    }
+                    if (cleanedValue.length < 10) {
+                        return { valid: false, message: 'Mobile number too short (need 10 digits)' };
+                    }
+                    if (cleanedValue.length > 10) {
+                        return { valid: false, message: 'Mobile number too long (need 10 digits)' };
+                    }
+                    if (cleanedValue.length === 10 && !/^[6-9]/.test(cleanedValue)) {
+                        return { valid: false, message: 'Indian mobile numbers start with 6, 7, 8, or 9' };
+                    }
+                }
+                
+                return { valid: true, message: 'Valid mobile number' };
+            }
+            
+            return { valid: false, message: `Invalid ${dataType} format` };
+        }
+
+        function handleContactChange(e) {
+            const value = e.target.value;
+            const validation = validateContact(value);
+            const detectedType = detectContactType(value);
+            
+            // === NEWSLETTER LOGGING ===
+            console.log('📝 Input changed:', {
+                value: value,
+                detectedType: detectedType,
+                previousType: state.contactType,
+                isValid: validation.valid,
+                message: validation.message
+            });
+            
+            // Log newsletter visibility changes
+            if (detectedType !== state.contactType) {
+                console.log('📧 Newsletter visibility change:', {
+                    previous: state.contactType,
+                    current: detectedType,
+                    willShowNewsletter: detectedType === 'email',
+                    reason: detectedType === 'email' ? 'Email detected' : detectedType === 'phone' ? 'Phone detected' : 'No specific type detected'
+                });
+            }
+            
+            state.contact = value;
+            // Show icon based on detected type (immediate feedback)
+            state.contactType = detectedType;
+            // Track validation separately for button enable/disable
+            state.isValidInput = validation.valid;
+            state.error = '';
+            state.validationMessage = validation.message;
+            
+            updateInputScreen();
+        }
+
+        async function handleSendOTP() {
+            if (!state.contact.trim()) {
+                state.error = 'Please enter your email or phone number';
+                updateInputScreen();
+                return;
+            }
+            const validation = validateContact(state.contact);
+            if (!validation.valid) {
+                state.error = validation.message || 'Please enter a valid email or 10-digit mobile number';
+                updateInputScreen();
+                return;
+            }
+            state.isLoading = true;
+            state.error = '';
+            updateInputScreen();
+            
+            // Use the new API for login simulation
+            try {
+                const response = await fakeApi.login(state.contact);
+                state.isLoading = false;
+                if (response.success) {
+                    // Set up the logged-in user for POC
+                    state.loggedInUser = response.user;
+                    
+                    // For POC, we'll skip actual OTP and go straight to logged in
+                    // But keep the transition for demo purposes
+                    state.step = 'verify';
+                    state.uiStep = 'verify';
+                    state.timer = 30;
+                    state.canResend = false;
+                    render();
+                    startTimer();
+                }
+            } catch (error) {
+                state.isLoading = false;
+                state.error = 'Login failed. Please try again.';
+                updateInputScreen();
+            }
+        }
+
+        function handleOTPChange(index, value) {
+            if (value.length > 1) return;
+            state.otp[index] = value;
+            state.error = '';
+            updateVerifyScreen();
+            if (value && index < 5 && otpInputs[index + 1]) {
+                otpInputs[index + 1].focus();
+            }
+            if (value) {
+                const isComplete = state.otp.every(digit => digit !== '');
+                if (isComplete) {
+                    setTimeout(() => { handleVerifyOTP(); }, 300);
+                }
+            }
+        }
+
+        function handleOTPKeyDown(index, e) {
+            if (e.key === 'Backspace' && !state.otp[index] && index > 0 && otpInputs[index - 1]) {
+                otpInputs[index - 1].focus();
+            }
+        }
+
+        async function handleVerifyOTP() {
+            const otpString = state.otp.join('');
+            if (otpString.length !== 6) {
+                state.error = 'Please enter the complete 6-digit code';
+                updateVerifyScreen();
+                return;
+            }
+            state.isLoading = true;
+            state.error = '';
+            updateVerifyScreen();
+            
+            setTimeout(() => {
+                state.isLoading = false;
+                if (otpString === '123456') {
+                    // POC Flow: Check platform requirements after successful OTP
+                    if (state.loggedInUser) {
+                        const config = getPlatformConfig(state.currentPlatform);
+                        const requirement = fakeApi.checkRequirements(state.loggedInUser, config);
+
+                        if (requirement.needsData) {
+                            state.uiStep = 'collectData';
+                            state.missingData = requirement;
+                        } else {
+                            state.uiStep = 'loggedIn';
+                        }
+                        render();
+                    } else {
+                        // Fallback to original success flow
+                        state.step = 'success';
+                        render();
+                        animateSuccessScreen();
+                        setTimeout(() => {
+                            state.step = 'feed';
+                            render();
+                        }, 3000);
+                    }
+                } else if (otpString === '000000') {
+                    state.error = '❌ Invalid or expired OTP code. Please try again.';
+                    updateVerifyScreen();
+                } else {
+                    state.error = '❌ Incorrect OTP code. Please check and try again.';
+                    updateVerifyScreen();
+                }
+            }, 1500);
+        }
+        
+        function animateSuccessScreen() {
+            setTimeout(() => {
+                const spinner = document.querySelector('.success-spinner');
+                const checkmark = document.querySelector('.success-checkmark');
+                if (spinner && checkmark) {
+                    spinner.classList.add('hide');
+                    checkmark.classList.add('show');
+                }
+            }, 1000);
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (state.timer <= 1) {
+                    state.canResend = true;
+                    state.timer = 0;
+                    clearInterval(timerInterval);
+                } else {
+                    state.timer--;
+                }
+                updateVerifyScreen();
+            }, 1000);
+        }
+
+        function handleResendOTP() {
+            state.timer = 30;
+            state.canResend = false;
+            state.otp = ['', '', '', '', '', ''];
+            updateVerifyScreen();
+            startTimer();
+            setTimeout(() => { alert('OTP resent successfully!'); }, 500);
+        }
+
+        function handleGoBack() {
+            state.step = 'input';
+            state.uiStep = 'login';
+            state.otp = ['', '', '', '', '', ''];
+            state.error = '';
+            clearInterval(timerInterval);
+            render();
+        }
+        
+        // POC Event Handlers
+        function handleLogout() {
+            // Reset user state
+            state.loggedInUser = null;
+            state.uiStep = 'login';
+            state.step = 'input';
+            state.contact = '';
+            state.contactType = '';
+            state.error = '';
+            state.validationMessage = '';
+            state.missingData = null;
+            render();
+        }
+        
+        async function handleSubmitMissingData() {
+            const input = document.getElementById('missingDataInput');
+            const value = input ? input.value : '';
+            
+            // Use the new validation function
+            const validation = validateDataCollectionInput(state.missingData.needsData, value);
+            
+            if (!validation.valid) {
+                state.error = validation.message;
+                updateCollectionScreen();
+                return;
+            }
+            
+            state.isLoading = true;
+            state.error = '';
+            updateCollectionScreen();
+            
+            try {
+                // Simulate API call to save additional data
+                const response = await fakeApi.saveAdditionalData(
+                    state.loggedInUser.contact, 
+                    state.missingData.needsData, 
+                    value.trim()
+                );
+                
+                if (response.success) {
+                    // In a real app, you'd update the user profile
+                    // For POC, just grant access
+                    state.isLoading = false;
+                    state.uiStep = 'loggedIn';
+                    render();
+                }
+            } catch (error) {
+                state.isLoading = false;
+                state.error = error.message || 'Failed to save information. Please try again.';
+                updateCollectionScreen();
+            }
+        }
+        
+        function updateCollectionScreen() {
+            const errorContainer = document.getElementById('collectionErrorMessage');
+            if (errorContainer) {
+                if (state.error) {
+                    errorContainer.innerHTML = `
+                        <div class="text-sm text-red-600 bg-red-50 p-3 rounded-md border border-red-200">
+                            ⚠️ ${state.error}
+                        </div>
+                    `;
+                } else {
+                    errorContainer.innerHTML = '';
+                }
+            }
+            
+            const submitBtn = document.getElementById('submitMissingDataBtn');
+            if (submitBtn) {
+                submitBtn.disabled = state.isLoading;
+                submitBtn.className = `${
+                    state.isLoading
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-[#0098AB] text-white hover:bg-[#007A89] active:bg-[#006A79]'
+                } w-full py-3 px-4 rounded-lg font-medium transition duration-200`;
+                
+                if (state.isLoading) {
+                    submitBtn.innerHTML = `
+                        <div class="flex items-center justify-center">
+                            <div class="spinner mr-2 h-4 w-4"></div>
+                            Saving...
+                        </div>
+                    `;
+                } else {
+                    submitBtn.innerHTML = 'Submit';
+                }
+            }
+        }
+
+        function createIcon(iconName, className = '') {
+            const iconElement = document.createElement('i');
+            iconElement.setAttribute('data-lucide', iconName);
+            iconElement.className = className;
+            return iconElement;
+        }
+
+        // Render input screen - Enhanced for POC
+        function renderLoginScreen() {
+            const config = state.platformConfig;
+            let placeholder = "Email or mobile number";
+            if (config.emailRequired) placeholder = "Email address (required)";
+            if (config.phoneRequired) placeholder = "Mobile number (required)";
+            
+            // === NEWSLETTER RENDER LOGGING ===
+            const showNewsletter = state.contactType === 'email';
+            console.log('🎨 Rendering login screen:', {
+                currentInput: state.contact,
+                detectedType: state.contactType,
+                showNewsletter: showNewsletter,
+                platform: config.platform,
+                placeholder: placeholder
+            });
+            
+            if (showNewsletter) {
+                console.log('✅ Newsletter checkbox will be rendered (email detected)');
+            } else {
+                console.log('❌ Newsletter checkbox hidden (no email detected)');
+            }
+            
+            return `
+                <div class="w-full max-w-md relative mx-auto">
+                        <!-- Mobile-only DH branding (hidden on desktop since left panel shows it) -->
+                        <div class="md:hidden text-center mb-8">
+                            <div class="flex flex-col items-center justify-center mb-5">
+                                <div class="text-[#0098AB] font-serif font-bold text-4xl mb-1 tracking-tight">DH</div>
+                                <div class="text-[#0098AB] font-serif text-xl tracking-wide mb-1">DECCAN HERALD</div>
+                                <div class="text-gray-600 text-sm italic">The Power of Good</div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center mb-8">
+                            <h1 class="text-2xl font-bold text-gray-900 mb-2">${config.platform.toUpperCase()} Login</h1>
+                            <p class="text-gray-600">${config.message}</p>
+                        </div>
+
+                        <div class="space-y-3">
+                                <div class="relative" id="inputContainer">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        ${state.contactType === 'email' ?
+                                            '<i data-lucide="mail" class="h-5 w-5 text-gray-400 icon-fallback-mail"></i>' :
+                                            state.contactType === 'phone' ?
+                                            '<i data-lucide="phone" class="h-5 w-5 text-gray-400 icon-fallback-phone"></i>' :
+                                            '<div class="h-5 w-5 bg-gray-300 rounded-full"></div>'
+                                        }
+                                    </div>
+                                    <input
+                                        type="text"
+                                        id="contactInput"
+                                        placeholder="${placeholder}"
+                                        class="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none transition duration-200"
+                                    />
+                                    ${state.isValidInput ? `
+                                        <div class="absolute inset-y-0 right-14 flex items-center pointer-events-none">
+                                            <div class="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                                                <i data-lucide="check" class="h-4 w-4 text-green-600"></i>
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                    <button
+                                        id="sendOTPBtn"
+                                        title="Continue"
+                                        ${state.isLoading || !state.isValidInput ? 'disabled' : ''}
+                                        class="
+                                            absolute inset-y-0 right-0 flex items-center justify-center w-12
+                                            rounded-r-lg focus:outline-none transition-all duration-200
+                                            ${state.isLoading ? '' : 'border-t border-r border-b'}
+                                            ${state.isValidInput && !state.isLoading 
+                                                ? 'bg-[#0098AB] text-white hover:bg-[#007A89] border-[#0098AB]' 
+                                                : state.isLoading 
+                                                    ? 'bg-transparent text-[#0098AB]' 
+                                                    : 'bg-gray-100 text-gray-400 border-gray-300'
+                                            }
+                                        "
+                                    >
+                                        ${state.isLoading ? `
+                                            <div class="spinner h-5 w-5"></div>
+                                        ` : `
+                                            <i data-lucide="arrow-right" class="h-6 w-6"></i>
+                                        `}
+                                    </button>
+                                </div>
+
+                            <!-- Fixed height validation area to prevent layout shift -->
+                            <div id="validationMessage" class="min-h-[2.5rem] flex items-start">
+                                ${state.validationMessage && !state.isValidInput ? `
+                                    <div class="text-sm text-red-600 bg-red-50 p-2 rounded-md w-full">
+                                        ${state.validationMessage}
+                                    </div>
+                                ` : ''}
+                            </div>
+
+                            <div id="errorMessage">
+                                ${state.error ? `
+                                    <div class="text-sm text-red-600 bg-red-50 p-2 rounded-md">
+                                        ${state.error}
+                                    </div>
+                                ` : ''}
+                            </div>
+
+                        <div class="mt-4 text-center text-sm text-gray-600">
+                            We'll send you a 6-digit verification code to confirm your identity
+                        </div>
+                        
+                        <div class="mt-4 space-y-3">
+                            <div class="text-xs text-gray-500 text-center">
+                                By signing in or creating an account, you agree with our
+                                <a href="#" class="text-[#0098AB] hover:underline">Terms & Conditions</a> and
+                                <a href="#" class="text-[#0098AB] hover:underline">Privacy Policy</a>.
+                            </div>
+                            ${state.contactType === 'email' ? `
+                            <div class="text-xs text-gray-500 text-center">
+                                <label for="newsletterCheckbox" class="inline-flex items-start cursor-pointer">
+                                    <input type="checkbox" id="newsletterCheckbox" name="newsletter" checked
+                                           class="h-4 w-4 text-[#0098AB] border-gray-300 rounded focus:ring-[#0098AB] mr-2 mt-[1px] flex-shrink-0">
+                                    <span class="leading-tight">Sign me up for the daily newsletter - no noise, just what matters.</span>
+                                </label>
+                            </div>
+                            ` : ''}
+                        </div>
+
+                        <div class="relative flex items-center justify-center my-4">
+                            <div class="flex-grow border-t border-gray-300"></div>
+                            <span class="px-4 text-gray-500 bg-white">Or continue with</span>
+                            <div class="flex-grow border-t border-gray-300"></div>
+                        </div>
+
+                        <div class="flex space-x-4 justify-center">
+                            <button class="flex items-center justify-center w-full max-w-[180px] py-3 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition duration-200">
+                                <i data-lucide="apple" class="w-5 h-5 mr-2 icon-fallback-apple"></i>
+                                Apple
+                            </button>
+                            <button class="flex items-center justify-center w-full max-w-[180px] py-3 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition duration-200">
+                                <i data-lucide="chrome" class="w-5 h-5 mr-2 icon-fallback-google"></i>
+                                Google
+                            </button>
+                        </div>
+                        
+                        <div class="mt-6 text-center">
+                            <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wider">One Account for Our Network</h3>
+                            <div class="flex justify-center items-center space-x-8 mt-4 text-gray-500">
+                                <div class="text-2xl font-serif font-bold text-[#0098AB]">DH</div>
+                                <div class="text-xl font-serif">Prajavani</div>
+                                <div class="text-lg font-serif">DH Classifieds</div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 text-center text-sm">
+                            <p class="text-gray-600">Trouble logging in? <a href="#" class="text-[#0098AB] hover:underline">Get Help</a></p>
+                        </div>
+                </div>
+            `;
+        }
+
+        // Render verify screen
+        function renderVerifyScreen() {
+            return `
+                <div class="w-full max-w-md mx-auto">
+                     <!-- **NEW**: Added top banner for consistency with original design -->
+                    <div class="bg-[#0098AB] text-white text-sm text-center p-3 rounded-t-lg -mx-8 -mt-8 mb-8 flex items-center justify-center">
+                        <i data-lucide="info" class="h-4 w-4 mr-2"></i>
+                        Please check your ${state.contactType === 'email' ? 'email' : 'phone'} for OTP
+                    </div>
+                        <div class="flex items-center mb-6">
+                            <button
+                                id="goBackBtn"
+                                class="p-2 hover:bg-gray-100 rounded-lg transition duration-200"
+                            >
+                                <i data-lucide="arrow-left" class="w-5 h-5 text-gray-600 icon-fallback-arrow-left"></i>
+                            </button>
+                            <h1 class="text-xl font-bold text-gray-900 ml-3">Verify Code</h1>
+                        </div>
+
+                        <div class="text-center mb-8">
+                            <div class="mx-auto w-16 h-16 bg-[#E6F7F9] rounded-full flex items-center justify-center mb-4">
+                                ${state.contactType === 'email' ? 
+                                    '<i data-lucide="mail" class="w-8 h-8 text-[#0098AB] icon-fallback-mail"></i>' : 
+                                    '<i data-lucide="phone" class="w-8 h-8 text-[#0098AB] icon-fallback-phone"></i>'
+                                }
+                            </div>
+                            <p class="text-gray-600">
+                                We've sent a 6-digit verification code to
+                            </p>
+                            <p class="font-medium text-gray-900 mt-1">${state.contact}</p>
+                        </div>
+
+                        <div class="space-y-6">
+                            <div class="otp-container" id="otpContainer">
+                                ${state.otp.map((digit, index) => `
+                                    <input
+                                        type="text"
+                                        inputmode="numeric"
+                                        pattern="[0-9]*"
+                                        maxlength="1"
+                                        value="${digit}"
+                                        data-index="${index}"
+                                        class="otp-input"
+                                    />
+                                `).join('')}
+                            </div>
+
+                            <div id="errorMessage">
+                                ${state.error ? `
+                                    <div class="text-sm text-red-600 bg-red-50 p-3 rounded-lg text-center">
+                                        ${state.error}
+                                    </div>
+                                ` : ''}
+                            </div>
+
+                            <button
+                                id="verifyOTPBtn"
+                                ${state.isLoading ? 'disabled' : ''}
+                                class="${state.isLoading
+                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                    : 'bg-[#0098AB] text-white hover:bg-[#007A89] active:bg-[#006A79]'
+                                } w-full py-3 px-4 rounded-lg font-medium transition duration-200"
+                            >
+                                ${state.isLoading ? `
+                                    <div class="flex items-center justify-center">
+                                        <div class="spinner mr-2"></div>
+                                        Verifying...
+                                    </div>
+                                ` : 'Verify Code'}
+                            </button>
+
+                            <div class="text-center text-sm" id="timerContainer">
+                                ${state.timer > 0 ? `
+                                    <p class="text-gray-600">
+                                        Resend code in <span class="font-medium">${state.timer}s</span>
+                                    </p>
+                                ` : `
+                                    <button
+                                        id="resendBtn"
+                                        class="text-[#0098AB] hover:text-[#007A89] font-medium transition duration-200"
+                                    >
+                                        Resend Code
+                                    </button>
+                                `}
+                            </div>
+                        </div>
+                </div>
+            `;
+        }
+
+        // Attach event listeners - Enhanced for POC
+        function attachEventListeners() {
+            const currentStep = state.uiStep || state.step;
+            
+            if (currentStep === 'login' || currentStep === 'input') {
+                const contactInput = document.getElementById('contactInput');
+                const sendOTPBtn = document.getElementById('sendOTPBtn');
+
+                if (contactInput) {
+                    contactInput.value = state.contact;
+                    contactInput.addEventListener('input', handleContactChange);
+                }
+                if (sendOTPBtn) {
+                    sendOTPBtn.addEventListener('click', handleSendOTP);
+                }
+            } else if (currentStep === 'verify') {
+                const goBackBtn = document.getElementById('goBackBtn');
+                const verifyOTPBtn = document.getElementById('verifyOTPBtn');
+                const resendBtn = document.getElementById('resendBtn');
+                otpInputs = Array.from(document.querySelectorAll('.otp-input'));
+
+                if (goBackBtn) goBackBtn.addEventListener('click', handleGoBack);
+                if (verifyOTPBtn) verifyOTPBtn.addEventListener('click', handleVerifyOTP);
+                if (resendBtn) resendBtn.addEventListener('click', handleResendOTP);
+
+                otpInputs.forEach((input, index) => {
+                    input.addEventListener('input', (e) => handleOTPChange(index, e.target.value));
+                    input.addEventListener('keydown', (e) => handleOTPKeyDown(index, e));
+                });
+            } else if (currentStep === 'loggedIn') {
+                const logoutBtn = document.getElementById('logoutBtn');
+                if (logoutBtn) {
+                    logoutBtn.addEventListener('click', handleLogout);
+                }
+            } else if (currentStep === 'collectData') {
+                const submitBtn = document.getElementById('submitMissingDataBtn');
+                const dataInput = document.getElementById('missingDataInput');
+                
+                if (submitBtn) {
+                    submitBtn.addEventListener('click', handleSubmitMissingData);
+                }
+                
+                // Clear error when user starts typing
+                if (dataInput) {
+                    dataInput.addEventListener('input', () => {
+                        if (state.error) {
+                            state.error = '';
+                            updateCollectionScreen();
+                        }
+                    });
+                }
+            } else if (currentStep === 'feed') {
+                const backToLoginBtn = document.getElementById('backToLoginBtn');
+                if (backToLoginBtn) {
+                    backToLoginBtn.addEventListener('click', () => {
+                        state.step = 'input';
+                        state.uiStep = 'login';
+                        state.contact = '';
+                        state.otp = ['', '', '', '', '', ''];
+                        state.contactType = '';
+                        state.error = '';
+                        state.validationMessage = '';
+                        state.loggedInUser = null;
+                        render();
+                    });
+                }
+            }
+        }
+
+        // Update specific parts of input screen without full re-render
+        function updateInputScreen() {
+            const iconContainer = document.querySelector('.absolute.inset-y-0.left-0');
+            if (iconContainer) {
+                if (state.contactType === 'email') iconContainer.innerHTML = '<i data-lucide="mail" class="h-5 w-5 text-gray-400 icon-fallback-mail"></i>';
+                else if (state.contactType === 'phone') iconContainer.innerHTML = '<i data-lucide="phone" class="h-5 w-5 text-gray-400 icon-fallback-phone"></i>';
+                else iconContainer.innerHTML = '<div class="h-5 w-5 bg-gray-300 rounded-full"></div>';
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+
+            // Update input field padding and tick icon
+            const contactInput = document.getElementById('contactInput');
+            if (contactInput) {
+                // No need to change padding since we're positioning the tick differently
+                
+                // Handle tick icon
+                let tickContainer = document.querySelector('.absolute.inset-y-0.right-14');
+                if (state.isValidInput) {
+                    if (!tickContainer) {
+                        const inputContainer = document.getElementById('inputContainer');
+                        const tickDiv = document.createElement('div');
+                        tickDiv.className = 'absolute inset-y-0 right-14 flex items-center pointer-events-none';
+                        tickDiv.innerHTML = `
+                            <div class="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                                <i data-lucide="check" class="h-4 w-4 text-green-600"></i>
+                            </div>
+                        `;
+                        inputContainer.insertBefore(tickDiv, contactInput.nextSibling);
+                        if (typeof lucide !== 'undefined') lucide.createIcons();
+                    }
+                } else {
+                    if (tickContainer) {
+                        tickContainer.remove();
+                    }
+                }
+            }
+
+            const validationContainer = document.getElementById('validationMessage');
+            if (validationContainer) {
+                if (state.validationMessage && !state.isValidInput) {
+                    validationContainer.innerHTML = `
+                        <div class="text-sm text-red-600 bg-red-50 p-2 rounded-md w-full">
+                            ${state.validationMessage}
+                        </div>
+                    `;
+                } else {
+                    validationContainer.innerHTML = '';
+                }
+            }
+
+            const errorContainer = document.getElementById('errorMessage');
+            if (errorContainer) {
+                if (state.error) errorContainer.innerHTML = `<div class="text-sm text-red-600 bg-red-50 p-2 rounded-md">${state.error}</div>`;
+                else errorContainer.innerHTML = '';
+            }
+            
+            // === HANDLE NEWSLETTER SECTION DYNAMICALLY ===
+            console.log('🔄 Updating newsletter section dynamically:', {
+                contactType: state.contactType,
+                shouldShowNewsletter: state.contactType === 'email'
+            });
+            
+            // Find the Terms & Conditions div (the one right before where newsletter should be)
+            const termsDiv = document.querySelector('div.text-xs.text-gray-500.text-center');
+            if (termsDiv) {
+                // Check if newsletter section already exists
+                const existingNewsletter = document.querySelector('#newsletterCheckbox');
+                
+                if (state.contactType === 'email') {
+                    // Should show newsletter
+                    if (!existingNewsletter) {
+                        console.log('📧 ➕ Adding newsletter section (email detected)');
+                        const newsletterDiv = document.createElement('div');
+                        newsletterDiv.className = 'text-xs text-gray-500 text-center';
+                        newsletterDiv.innerHTML = `
+                            <label for="newsletterCheckbox" class="inline-flex items-start cursor-pointer">
+                                <input type="checkbox" id="newsletterCheckbox" name="newsletter" checked
+                                       class="h-4 w-4 text-[#0098AB] border-gray-300 rounded focus:ring-[#0098AB] mr-2 mt-[1px] flex-shrink-0">
+                                <span class="leading-tight">Sign me up for the daily newsletter - no noise, just what matters.</span>
+                            </label>
+                        `;
+                        // Insert after the Terms & Conditions div
+                        termsDiv.parentNode.insertBefore(newsletterDiv, termsDiv.nextSibling);
+                    } else {
+                        console.log('📧 ✅ Newsletter section already exists');
+                    }
+                } else {
+                    // Should hide newsletter
+                    if (existingNewsletter) {
+                        console.log('📧 ❌ Removing newsletter section (no email detected)');
+                        const newsletterDiv = existingNewsletter.closest('div.text-xs.text-gray-500.text-center');
+                        if (newsletterDiv && newsletterDiv.querySelector('#newsletterCheckbox')) {
+                            newsletterDiv.remove();
+                        }
+                    } else {
+                        console.log('📧 ⚪ Newsletter section already hidden');
+                    }
+                }
+            } else {
+                console.log('⚠️ Could not find Terms & Conditions div for newsletter insertion');
+            }
+            const sendOTPBtn = document.getElementById('sendOTPBtn');
+            if (sendOTPBtn) {
+                sendOTPBtn.disabled = state.isLoading || !state.isValidInput;
+
+                let baseClasses = [
+                    'absolute', 'inset-y-0', 'right-0', 
+                    'flex', 'items-center', 'justify-center', 'w-12',
+                    'rounded-r-lg', 'focus:outline-none', 'transition-all', 'duration-200'
+                ];
+                let bgAndTextClasses = [];
+                let borderClasses = []; 
+
+                if (state.isValidInput && !state.isLoading) {
+                    bgAndTextClasses = ['bg-[#0098AB]', 'text-white', 'hover:bg-[#007A89]'];
+                    borderClasses = ['border-t', 'border-r', 'border-b', 'border-[#0098AB]'];
+                } else if (state.isLoading) {
+                    bgAndTextClasses = ['bg-transparent', 'text-[#0098AB]'];
+                } else { 
+                    bgAndTextClasses = ['bg-gray-100', 'text-gray-400'];
+                    borderClasses = ['border-t', 'border-r', 'border-b', 'border-gray-300'];
+                }
+                sendOTPBtn.className = [...baseClasses, ...bgAndTextClasses, ...borderClasses].join(' ');
+
+                if (state.isLoading) {
+                    sendOTPBtn.innerHTML = `<div class="spinner h-5 w-5"></div>`;
+                } else {
+                    sendOTPBtn.innerHTML = `<i data-lucide="arrow-right" class="h-6 w-6"></i>`;
+                    if (typeof lucide !== 'undefined' && sendOTPBtn.querySelector('i[data-lucide]')) {
+                        lucide.createIcons({
+                            nodes: [sendOTPBtn.querySelector('i[data-lucide]')]
+                        });
+                    }
+                }
+            }
+        }
+
+        // Update specific parts of verify screen without full re-render
+        function updateVerifyScreen() {
+            const otpInputs = document.querySelectorAll('.otp-input');
+            otpInputs.forEach((input, index) => {
+                if (input.value !== state.otp[index]) input.value = state.otp[index];
+            });
+
+            const errorContainer = document.getElementById('errorMessage');
+            if (errorContainer) {
+                if (state.error) errorContainer.innerHTML = `<div class="text-sm text-red-600 bg-red-50 p-3 rounded-lg text-center">${state.error}</div>`;
+                else errorContainer.innerHTML = '';
+            }
+
+            const verifyOTPBtn = document.getElementById('verifyOTPBtn');
+            if (verifyOTPBtn) {
+                verifyOTPBtn.disabled = state.isLoading;
+                verifyOTPBtn.className = `${
+                    state.isLoading
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-[#0098AB] text-white hover:bg-[#007A89] active:bg-[#006A79]'
+                } w-full py-3 px-4 rounded-lg font-medium transition duration-200`;
+                verifyOTPBtn.innerHTML = state.isLoading ? `<div class="flex items-center justify-center"><div class="spinner mr-2"></div>Verifying...</div>` : 'Verify Code';
+            }
+
+            const timerContainer = document.getElementById('timerContainer');
+            if (timerContainer) {
+                if (state.timer > 0) {
+                    timerContainer.innerHTML = `<p class="text-gray-600">Resend code in <span class="font-medium">${state.timer}s</span></p>`;
+                } else {
+                    timerContainer.innerHTML = `<button id="resendBtn" class="text-[#0098AB] hover:text-[#007A89] font-medium transition duration-200">Resend Code</button>`;
+                    const resendBtn = document.getElementById('resendBtn');
+                    if (resendBtn) resendBtn.addEventListener('click', handleResendOTP);
+                }
+            }
+        }
+        
+        // Render logged-in screen
+        function renderLoggedInScreen() {
+            return `
+                <div class="w-full max-w-md mx-auto">
+                    <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6">
+                        <p class="font-bold">Login Successful!</p>
+                        <p>Welcome! You are logged in with: ${state.loggedInUser.contact}</p>
+                    </div>
+                    
+                    <h2 class="text-xl font-bold mb-4">Platform: ${state.currentPlatform.toUpperCase()}</h2>
+                    <p class="text-gray-600 mb-6">You have access to this platform and can use all its features.</p>
+                    
+                    <div class="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+                        <h3 class="font-semibold mb-2">Platform Access Granted</h3>
+                        <p class="text-sm text-gray-600">✅ Authentication verified</p>
+                        <p class="text-sm text-gray-600">✅ Platform requirements met</p>
+                        <p class="text-sm text-gray-600">✅ Ready to use ${state.currentPlatform}</p>
+                    </div>
+                    
+                    <button id="logoutBtn" class="w-full mt-6 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition">Logout</button>
+                </div>
+            `;
+        }
+        
+        // Render data collection screen
+        function renderDataCollectionScreen() {
+            const requirement = state.missingData;
+            
+            // Dynamic placeholder and helper text based on data type
+            let placeholder = "";
+            let helperText = "";
+            let inputType = "text";
+            
+            if (requirement.needsData === 'email') {
+                placeholder = "e.g., user@example.com";
+                helperText = "We'll use this to send you important updates and notifications.";
+                inputType = "email";
+            } else if (requirement.needsData === 'phone') {
+                placeholder = "e.g., 9876543210";
+                helperText = "Enter your 10-digit mobile number (no country code or spaces).";
+                inputType = "tel";
+            }
+            
+            return `
+                <div class="w-full max-w-md mx-auto">
+                    <div class="bg-orange-100 border-l-4 border-orange-500 text-orange-700 p-4 mb-6">
+                        <p class="font-bold">Additional Information Required</p>
+                        <p>${requirement.message}</p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <p class="text-sm text-gray-600 mb-2">You are currently logged in with:</p>
+                        <p class="font-semibold text-gray-900">${state.loggedInUser.contact}</p>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label for="missingDataInput" class="block font-medium text-gray-700 mb-2">
+                                Please enter your ${requirement.needsData}:
+                            </label>
+                            <input 
+                                id="missingDataInput" 
+                                type="${inputType}" 
+                                placeholder="${placeholder}" 
+                                class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0098AB] focus:ring-2 focus:ring-[#0098AB]/20 transition"
+                            />
+                            <p class="text-xs text-gray-500 mt-2">${helperText}</p>
+                        </div>
+                        
+                        <div id="collectionErrorMessage">
+                            ${state.error ? `
+                                <div class="text-sm text-red-600 bg-red-50 p-3 rounded-md border border-red-200">
+                                    ⚠️ ${state.error}
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        <button 
+                            id="submitMissingDataBtn" 
+                            ${state.isLoading ? 'disabled' : ''}
+                            class="${
+                                state.isLoading
+                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                    : 'bg-[#0098AB] text-white hover:bg-[#007A89] active:bg-[#006A79]'
+                            } w-full py-3 px-4 rounded-lg font-medium transition duration-200"
+                        >
+                            ${state.isLoading ? `
+                                <div class="flex items-center justify-center">
+                                    <div class="spinner mr-2 h-4 w-4"></div>
+                                    Saving...
+                                </div>
+                            ` : 'Submit'}
+                        </button>
+                        
+                        <p class="text-xs text-gray-500 text-center">
+                            This information will be added to your account and used for ${state.currentPlatform} access.
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render success screen
+        function renderSuccessScreen() {
+            return `
+                <div class="w-full max-w-md text-center mx-auto">
+                        <div class="success-circle">
+                            <div class="success-spinner"></div>
+                            <div class="success-checkmark">
+                                <div class="check-icon">
+                                    <span class="icon-line line-tip"></span>
+                                    <span class="icon-line line-long"></span>
+                                    <div class="icon-circle"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <h1 class="text-2xl font-bold text-gray-900 mb-4">Authentication Successful</h1>
+                        <p class="text-gray-600 mb-8">You have been successfully logged in to your account.</p>
+                        
+                        <div class="text-center">
+                            <p class="text-sm text-gray-500">Hang on a moment ... getting your feed ready</p>
+                        </div>
+                </div>
+            `;
+        }
+        
+        // Render transition screen
+        function renderTransitionScreen() {
+            return `
+                <div class="transition-screen">
+                    <div class="transition-logo">DH</div>
+                    <div class="transition-loader"></div>
+                    <div class="transition-message">Hang on a moment… getting your feed ready</div>
+                </div>
+            `;
+        }
+
+        // Render news feed screen
+        function renderFeedScreen() {
+            return `
+                <div class="min-h-screen bg-gray-100">
+                    <header class="news-header">
+                        <div class="news-logo">
+                            <div class="news-logo-text">DH</div>
+                        </div>
+                        <div class="user-profile">
+                            <span class="text-white text-sm mr-2">Welcome, User</span>
+                            <i data-lucide="user-circle" class="h-6 w-6 text-white inline-block"></i>
+                        </div>
+                    </header>
+                    <div class="news-container">
+                        <div class="text-center py-20">
+                            <div class="mx-auto w-20 h-20 bg-[#E6F7F9] rounded-full flex items-center justify-center mb-6">
+                                <i data-lucide="home" class="w-10 h-10 text-[#0098AB]"></i>
+                            </div>
+                            <h1 class="text-3xl font-bold text-gray-900 mb-4">Welcome to Deccan Herald</h1>
+                            <p class="text-gray-600 mb-8 max-w-md mx-auto">You've successfully logged in! This is a placeholder for the main application.</p>
+                            <div class="space-y-4">
+                                <div class="bg-white rounded-lg p-6 shadow-sm">
+                                    <h3 class="font-semibold text-gray-900 mb-2">🎉 Login Successful</h3>
+                                    <p class="text-gray-600 text-sm">Your authentication is complete and you're now logged into the DH network.</p>
+                                </div>
+                                <div class="bg-white rounded-lg p-6 shadow-sm">
+                                    <h3 class="font-semibold text-gray-900 mb-2">📰 News Feed Coming Soon</h3>
+                                    <p class="text-gray-600 text-sm">This area will show your personalized news feed and content.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <button id="backToLoginBtn" class="back-to-login">Back to Login</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Main render function - Enhanced for POC
+        function render() {
+            const app = document.getElementById('app');
+            
+            // Update platform configuration
+            state.platformConfig = getPlatformConfig(state.currentPlatform);
+
+            // ROUTER LOGIC - Use uiStep for POC, fall back to step for compatibility
+            const currentStep = state.uiStep || state.step;
+            
+            if (currentStep === 'login' || currentStep === 'input') {
+                app.innerHTML = renderLoginScreen();
+            } else if (currentStep === 'verify') {
+                app.innerHTML = renderVerifyScreen();
+            } else if (currentStep === 'loggedIn') {
+                app.innerHTML = renderLoggedInScreen();
+            } else if (currentStep === 'collectData') {
+                app.innerHTML = renderDataCollectionScreen();
+            } else if (currentStep === 'success') {
+                app.innerHTML = renderSuccessScreen();
+            } else if (currentStep === 'transition') {
+                app.innerHTML = renderTransitionScreen();
+            } else if (currentStep === 'feed') {
+                app.innerHTML = renderFeedScreen();
+            }
+
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            else console.log('Lucide not available when rendering');
+            
+            attachEventListeners();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // showSplashScreen(); // Removed splash screen
+            
+            // Initialize POC state
+            state.platformConfig = getPlatformConfig(state.currentPlatform);
+            
+            render();
+        });
+
+        if (typeof lucide === 'undefined') {
+             window.addEventListener('load', () => {
+                if (typeof lucide !== 'undefined') {
+                    render(); // Re-render if lucide loads late
+                } else {
+                    setTimeout(() => {
+                        if (typeof lucide === 'undefined') {
+                            console.error('Lucide library not loaded. Attempting to continue without icons.');
+                            window.lucide = { createIcons: function() { console.log('Fallback lucide.createIcons called'); } };
+                        }
+                        render(); // Final attempt to render
+                    }, 1000);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
